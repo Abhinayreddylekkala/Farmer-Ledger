@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Farmer Calculator</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f0f8ff; display: flex; justify-content: center; padding: 20px; }
+        .container { background: white; padding: 30px; border-radius: 10px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); width: 100%; max-width: 500px; }
+        h2 { color: #2c3e50; text-align: center; margin-bottom: 20px; }
+        
+        .user-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #eee; padding-bottom: 10px; margin-bottom: 20px; }
+        .user-name { color: #555; font-size: 0.9em; }
+        .logout-btn { color: #e74c3c; text-decoration: none; border: 1px solid #e74c3c; padding: 5px 10px; border-radius: 4px; font-size: 0.8em; }
+        .logout-btn:hover { background: #e74c3c; color: white; }
+
+        .form-group { margin-bottom: 15px; }
+        label { display: block; margin-bottom: 5px; font-weight: bold; color: #555; }
+        input { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px; box-sizing: border-box; }
+        input:focus { border-color: #3498db; outline: none; }
+        
+        button { width: 100%; padding: 12px; background-color: #27ae60; color: white; border: none; border-radius: 5px; font-size: 16px; cursor: pointer; transition: background 0.3s; }
+        button:hover { background-color: #219150; }
+
+        .result-box { margin-top: 25px; background-color: #e8f8f5; border: 1px solid #a2d9ce; padding: 20px; border-radius: 8px; }
+        .result-row { display: flex; justify-content: space-between; margin-bottom: 10px; border-bottom: 1px dashed #ccc; padding-bottom: 5px; }
+        .total-row { font-size: 1.2em; font-weight: bold; color: #c0392b; border-top: 2px solid #333; padding-top: 10px; }
+        .error { color: red; text-align: center; }
+        
+        /* Dashboard Button */
+        .view-dashboard-btn {
+            display: block; width: 100%; text-align: center; background: #34495e; color: white; 
+            padding: 10px; border-radius: 5px; text-decoration: none; margin-bottom: 15px;
+            box-sizing: border-box; font-weight: bold;
+        }
+        .view-dashboard-btn:hover { background: #2c3e50; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    
+    <div class="user-header">
+        <span class="user-name">User: <strong>{{ user.id }}</strong></span>
+        <div>
+            <a href="{{ url_for('logout') }}" class="logout-btn">Logout</a>
+        </div>
+    </div>
+
+    <a href="{{ url_for('dashboard') }}" class="view-dashboard-btn">📊 View All Farmers (Dashboard)</a>
+
+    <h2>🌾 Farmer Calculator</h2>
+    
+    <form method="POST">
+        
+        <div class="form-group">
+            <label>Bill Date:</label>
+            <input type="date" name="bill_date" id="datePicker" required>
+        </div>
+
+        <div class="form-group">
+            <label>Farmer Name:</label>
+            <input type="text" name="name" list="farmers_list" required placeholder="Start typing to search..." autocomplete="off">
+            <datalist id="farmers_list">
+                {% if existing_names %}
+                    {% for name in existing_names %}
+                    <option value="{{ name }}">
+                    {% endfor %}
+                {% endif %}
+            </datalist>
+        </div>
+
+        <div class="form-group">
+            <label>Kilos (Example: 50.5, 20, 10):</label>
+            <input type="text" name="kilos" required placeholder="50, 40.5, 30">
+        </div>
+
+        <div class="form-group">
+            <label>Market Price (per unit):</label>
+            <input type="number" name="market_price" required placeholder="Amount in Rupees">
+        </div>
+
+        <div class="form-group">
+            <label>Extra Amount:</label>
+            <input type="number" name="extra_amount" required placeholder="Extra in Rupees">
+        </div>
+
+        <button type="submit">Calculate & Save</button>
+    </form>
+    
+    {% if error %}
+        <p class="error">{{ error }}</p>
+    {% endif %}
+
+    {% if result %}
+    <div class="result-box">
+        <h3 style="text-align: center; margin-top: 0;">Bill Saved!</h3>
+        <p style="text-align: center; font-size: 0.9em; color: #777;">{{ result.date }}</p>
+        
+        <div class="result-row">
+            <span>Farmer:</span>
+            <strong>{{ result.name }}</strong>
+        </div>
+        <div class="result-row">
+            <span>Total Bags:</span>
+            <span>{{ result.bags }}</span>
+        </div>
+        <div class="result-row">
+            <span>Total Kilos:</span>
+            <span>{{ result.total_kilos }} kg</span>
+        </div>
+        <div class="result-row">
+            <span>Manumulu:</span>
+            <span>{{ result.manumulu }}</span>
+        </div>
+        <div class="result-row">
+            <span>Price Per Unit:</span>
+            <span>₹ {{ result.price_per_unit }}</span>
+        </div>
+        
+        <div class="result-row total-row">
+            <span>Final Amount:</span>
+            <span>₹ {{ result.grand_total }}</span>
+        </div>
+    </div>
+    {% endif %}
+
+</div>
+
+<script>
+    // Auto-set today's date
+    const datePicker = document.getElementById('datePicker');
+    if (datePicker) {
+        datePicker.valueAsDate = new Date();
+    }
+</script>
+
+</body>
+</html>

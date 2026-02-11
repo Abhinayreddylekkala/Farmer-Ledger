@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Ledger: {{ name }}</title>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; background-color: rgba(0,0,0,0.7); display: flex; justify-content: center; align-items: flex-start; padding-top: 40px; min-height: 100vh; margin: 0; }
+        .ledger-card { background: white; width: 100%; max-width: 600px; border-radius: 8px; padding: 25px; position: relative; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+        .card-header { font-size: 1.4em; margin-bottom: 20px; color: #333; font-weight: bold; border-bottom: 2px solid #eee; padding-bottom: 10px; }
+        
+        /* SEARCH BAR (Added) */
+        .search-bar { background: #e3f2fd; padding: 10px; border-radius: 5px; margin-bottom: 15px; display: flex; gap: 5px; flex-wrap: wrap; align-items: flex-end; }
+        .date-input { padding: 5px; border: 1px solid #ccc; border-radius: 4px; font-size: 0.9em; }
+        .btn-search { background: #333; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; }
+        .btn-clear { background: #999; color: white; text-decoration: none; padding: 6px 12px; border-radius: 4px; font-size: 0.9em; }
+
+        .tx-item { border-bottom: 1px solid #f0f0f0; padding: 15px 0; display: flex; align-items: flex-start; gap: 10px; }
+        .select-box { transform: scale(1.5); margin-top: 5px; cursor: pointer; }
+        
+        .tx-content { flex-grow: 1; }
+        .tx-header { display: flex; justify-content: space-between; margin-bottom: 5px; }
+        .tx-title { color: #2c3e50; font-weight: bold; font-size: 0.9em; }
+        .tx-amount { color: #2c3e50; font-weight: bold; font-size: 1.1em; }
+        .tx-date { font-size: 0.85em; color: #888; display: block; margin-bottom: 8px; }
+        
+        .tx-actions { text-align: right; margin-top: 8px; }
+        .tx-actions a, .tx-actions button { font-size: 0.85em; margin-left: 10px; text-decoration: none; cursor: pointer; }
+        
+        .footer { display: flex; justify-content: space-between; align-items: center; margin-top: 20px; border-top: 2px solid #333; padding-top: 15px; }
+        .final-bal { font-weight: bold; font-size: 1.3em; color: #d32f2f; }
+        
+        .btn-settle { background: #27ae60; color: white; border: none; padding: 10px 20px; border-radius: 5px; font-weight: bold; cursor: pointer; }
+        .btn-undo { background: #ddd; border: none; padding: 5px 8px; border-radius: 4px; cursor: pointer; font-size: 1.2em; }
+        .close-btn { position: absolute; top: 15px; right: 20px; text-decoration: none; color: #999; font-size: 2em; line-height: 0.5; }
+    </style>
+</head>
+<body>
+
+    <div class="ledger-card">
+        <a href="{{ url_for('businessman') }}" class="close-btn">×</a>
+        <div class="card-header">Sales Ledger: {{ name }}</div>
+
+        <form method="GET" action="{{ url_for('businessman_history', name=name) }}" class="search-bar">
+            <div>
+                <small>From:</small><br>
+                <input type="date" name="start_date" class="date-input" value="{{ start_date if start_date else '' }}" required>
+            </div>
+            <div>
+                <small>To:</small><br>
+                <input type="date" name="end_date" class="date-input" value="{{ end_date if end_date else '' }}" required>
+            </div>
+            <div>
+                <br>
+                <button type="submit" class="btn-search">🔍 Search</button>
+                <a href="{{ url_for('businessman_history', name=name) }}" class="btn-clear">Clear</a>
+            </div>
+        </form>
+
+        <form id="settle-form" action="{{ url_for('settle_sales') }}" method="POST"></form>
+            
+        <div style="max-height: 500px; overflow-y: auto; padding-right: 5px;">
+            {% for sale in sales %}
+            <div class="tx-item">
+                
+                {% if sale.status != 'Completed' %}
+                    <input type="checkbox" name="sale_ids" value="{{ sale.id }}" form="settle-form" class="select-box">
+                {% else %}
+                    <form action="{{ url_for('undo_sale_settle', id=sale.id) }}" method="POST">
+                        <button type="submit" class="btn-undo" title="Undo (Mark as Pending)">↩️</button>
+                    </form>
+                {% endif %}
+
+                <div class="tx-content">
+                    <div class="tx-header">
+                        <span class="tx-title">SALE</span>
+                        <span class="tx-amount">{{ sale.bags_sold }} Bags</span>
+                    </div>
+                    <span class="tx-date">{{ sale.date }}</span>
+                    
+                    <div class="tx-actions">
+                        <a href="{{ url_for('edit_sale', id=sale.id) }}" style="color: #2196F3;">Edit</a>
+                        
+                        <form action="{{ url_for('delete_sale', id=sale.id) }}" method="POST" style="display:inline;">
+                            <button type="submit" onclick="return confirm('Delete?')" style="background:none; border:none; color:#F44336;">Delete</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+
+        <div class="footer">
+            <div>
+                <div style="font-size: 0.9em; color: #777;">PENDING BAGS</div>
+                <span class="final-bal">{{ total_pending }}</span>
+            </div>
+            <button type="submit" form="settle-form" class="btn-settle" onclick="return confirm('Mark selected as Completed?')">Settle Selected</button>
+        </div>
+    </div>
+
+</body>
+</html>

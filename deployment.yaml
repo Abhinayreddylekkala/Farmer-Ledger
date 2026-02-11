@@ -1,0 +1,46 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: farmer-deployment
+spec:
+  replicas: 1  # Run 1 copy of your app
+  selector:
+    matchLabels:
+      app: farmer-app
+  template:
+    metadata:
+      labels:
+        app: farmer-app
+    spec:
+      containers:
+      - name: farmer-container
+        image: farmer-app:v1
+        imagePullPolicy: Never  # IMPORTANT: Tells K8s to use the local image we just built
+        ports:
+        - containerPort: 5000
+        volumeMounts:
+        - name: db-storage
+          mountPath: /app/instance # Where the DB lives INSIDE the container
+      volumes:
+      - name: db-storage
+        hostPath:
+          # CHANGE THIS PATH to the actual 'instance' folder on your laptop!
+          # Example for Windows: /run/desktop/mnt/host/c/Users/abhi/Desktop/qwn_web/instance
+          # For simplicity, let's map it to a generic temp folder first to test:
+          path: /run/desktop/mnt/host/c/farmer_data 
+          type: DirectoryOrCreate
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: farmer-service
+spec:
+  type: NodePort  # Exposes the app to your local Wi-Fi network
+  selector:
+    app: farmer-app
+  ports:
+    - protocol: TCP
+      port: 5000      # Internal port
+      targetPort: 5000
+      nodePort: 30005 # You will access the app at http://Laptop-IP:30005

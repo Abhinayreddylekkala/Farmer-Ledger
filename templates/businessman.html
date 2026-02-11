@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Businessman Sales</title>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; background-color: #f4f6f9; padding: 20px; }
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        .btn-back { background: #555; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; font-weight: bold; }
+
+        .search-bar { background: white; padding: 15px; border-radius: 8px; margin-bottom: 20px; display: flex; gap: 10px; align-items: flex-end; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+        .date-input { padding: 8px; border: 1px solid #ccc; border-radius: 4px; }
+        .btn-search { background: #333; color: white; border: none; padding: 9px 15px; border-radius: 4px; cursor: pointer; }
+        .btn-clear { background: #999; color: white; text-decoration: none; padding: 9px 15px; border-radius: 4px; }
+
+        .summary-card { background: linear-gradient(135deg, #1e3c72, #2a5298); color: white; padding: 30px; border-radius: 8px; margin-bottom: 25px; text-align: center; box-shadow: 0 4px 15px rgba(0,0,0,0.2); }
+        .stat-value { font-size: 3em; font-weight: bold; margin: 0; line-height: 1; }
+        .stat-label { font-size: 1.1em; opacity: 0.8; text-transform: uppercase; letter-spacing: 1px; margin-top: 5px; }
+
+        .form-card { background: white; padding: 20px; border-radius: 8px; margin-bottom: 20px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+        .form-title { margin-top: 0; margin-bottom: 15px; color: #2c3e50; font-size: 1.1em; border-bottom: 1px solid #eee; padding-bottom: 10px; }
+        .sale-form { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+        .form-input { padding: 10px; border: 1px solid #ddd; border-radius: 4px; flex-grow: 1; }
+        .btn-save { background: #27ae60; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; font-weight: bold; }
+
+        .table-card { background: white; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); overflow: hidden; }
+        table { width: 100%; border-collapse: collapse; }
+        th { text-align: left; padding: 15px; background: #f8f9fa; color: #777; font-size: 0.85em; text-transform: uppercase; border-bottom: 1px solid #eee; }
+        td { padding: 15px; border-bottom: 1px solid #eee; color: #333; }
+        .pending-bags { color: #d32f2f; font-weight: bold; font-size: 1.2em; }
+        .view-link { color: #2980b9; font-weight: bold; text-decoration: none; cursor: pointer; background: #eaf2f8; padding: 5px 10px; border-radius: 4px; }
+        .view-link:hover { background: #d4e6f1; }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <h2>👨‍💼 Businessman Sales Summary</h2>
+        <a href="{{ url_for('dashboard') }}" class="btn-back">← Dashboard</a>
+    </div>
+
+    <form method="GET" action="{{ url_for('businessman') }}" class="search-bar">
+        <div><small>From:</small><br><input type="date" name="start_date" class="date-input" value="{{ start_date if start_date else '' }}"></div>
+        <div><small>To:</small><br><input type="date" name="end_date" class="date-input" value="{{ end_date if end_date else '' }}"></div>
+        <div><br><button type="submit" class="btn-search">🔍 Filter</button> <a href="{{ url_for('businessman') }}" class="btn-clear">Clear</a></div>
+    </form>
+
+    <div class="summary-card">
+        <div class="stat-value">{{ global_total_bags }}</div>
+        <div class="stat-label">Total Bags Sold (All Time)</div>
+    </div>
+
+    <div class="form-card">
+        <h3 class="form-title">➕ Add New Daily Sale</h3>
+        <form method="POST" class="sale-form">
+            <input type="date" name="sale_date" id="datePicker" class="form-input" required style="max-width: 150px;">
+            <input type="text" name="name" placeholder="Name" class="form-input" required autocomplete="off">
+            <input type="number" name="bags" placeholder="Number of Bags" class="form-input" required style="max-width: 150px;">
+            <button type="submit" class="btn-save">Add Record</button>
+        </form>
+    </div>
+
+    <div class="table-card">
+        <table>
+            <thead>
+                <tr>
+                    <th>NAME</th>
+                    <th>PENDING BAGS</th>
+                    <th>ACTION</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for key, data in businessmen.items() %}
+                <tr>
+                    <td><strong>{{ data.name }}</strong></td>
+                    <td class="pending-bags">{{ data.pending_bags }}</td>
+                    <td>
+                        <a href="{{ url_for('businessman_history', name=data.name) }}" class="view-link">View Ledger ➔</a>
+                    </td>
+                </tr>
+                {% else %}
+                <tr><td colspan="3" style="text-align:center; padding: 20px; color:#999;">No records found.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+<script>
+    const datePicker = document.getElementById('datePicker');
+    if (!datePicker.value) { datePicker.valueAsDate = new Date(); }
+</script>
+
+</body>
+</html>

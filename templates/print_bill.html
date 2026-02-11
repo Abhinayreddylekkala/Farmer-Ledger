@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Statement</title>
+    <style>
+        body { font-family: 'Times New Roman', serif; padding: 20px; background: #eee; }
+        
+        /* PAGE SETTINGS */
+        .page { 
+            background: white; 
+            width: 21cm; 
+            min-height: 29.7cm; 
+            margin: 0 auto; 
+            padding: 1.5cm; /* Added padding to prevent cutting */
+            box-shadow: 0 0 10px rgba(0,0,0,0.1); 
+            box-sizing: border-box; /* Ensures padding doesn't expand width */
+        }
+
+        .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid black; padding-bottom: 10px; margin-bottom: 5px; }
+        .title { font-size: 4em; font-weight: bold; letter-spacing: 5px; margin: 0; text-align: center; flex-grow: 1; }
+        .sub-info { font-weight: bold; font-size: 1.2em; display: flex; justify-content: space-between; margin-top: 20px; border-bottom: 1px solid #ddd; padding-bottom: 10px; }
+        
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; border: 2px solid black; }
+        th, td { border: 1px solid black; padding: 8px; text-align: center; font-size: 1em; }
+        th { background: #f0f0f0; }
+
+        .total-row td { font-weight: bold; font-size: 1.1em; border-top: 2px solid black; }
+        
+        /* PAYMENT ROW STYLES */
+        .payment-row td { 
+            color: #2e7d32; 
+            font-weight: bold; 
+            border: none; 
+            text-align: right; 
+            padding-right: 20px; /* Space for the text */
+        } 
+        
+        .final-row td { background: #eee; font-size: 1.3em; font-weight: bold; color: #d32f2f; }
+        .img-logo { height: 100px; width: auto; object-fit: contain; }
+
+        /* PRINT SETTINGS (CRITICAL FOR FIXING CUT OFF) */
+        @media print {
+            body { background: none; padding: 0; }
+            .no-print { display: none; }
+            .page { 
+                margin: 0; 
+                width: 100%; 
+                box-shadow: none; 
+                border: none;
+                padding: 1cm; /* Print padding to keep text safe */
+            }
+        }
+        .btn { padding: 10px 20px; background: #333; color: white; cursor: pointer; margin-bottom: 20px; border: none; border-radius: 5px; }
+    </style>
+</head>
+<body>
+
+    <div class="no-print" style="text-align:center;">
+        <button onclick="window.print()" class="btn">🖨️ Print Statement</button>
+        <button onclick="window.history.back()" class="btn">← Back</button>
+    </div>
+
+    <div class="page">
+        <div class="header">
+            <img src="{{ url_for('static', filename='logo_left.png') }}" class="img-logo" alt="Ganesha">
+            <h1 class="title">L.T.K.R</h1>
+            <img src="{{ url_for('static', filename='logo_right.png') }}" class="img-logo" alt="Logo">
+        </div>
+        
+        <div style="text-align: right; font-weight: bold; margin-bottom: 10px;">PHONE: 9000409290</div>
+
+        <div class="sub-info">
+            <span>NAME: {{ farmer_name }}</span>
+            <span>DATE: {{ bills[0].date if bills else 'Statement' }}</span>
+        </div>
+
+        <table>
+            <thead>
+                <tr>
+                    <th style="width: 15%;">DATE</th>
+                    <th>BAGS</th>
+                    <th>WEIGHT</th>
+                    <th>MANUMULU</th>
+                    <th>RATE</th>
+                    <th>EXTRA</th>
+                    <th style="width: 20%;">AMOUNT</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for bill in bills %}
+                <tr>
+                    <td>{{ bill.date }}</td>
+                    <td>{{ bill.bags }}</td>
+                    <td>{{ bill.total_kilos }}</td>
+                    <td>{{ bill.manumulu }}</td>
+                    <td>{{ bill.market_price }}</td>
+                    <td>{{ bill.extra_amount }}</td>
+                    <td>{{ bill.grand_total }}</td>
+                </tr>
+                {% endfor %}
+
+                <tr class="total-row">
+                    <td colspan="6" style="text-align: right; padding-right: 15px;">TOTAL BILL AMOUNT:</td>
+                    <td>{{ bill_total }}</td>
+                </tr>
+
+                {% for pay in payments %}
+                <tr class="payment-row">
+                    <td style="border:none; color:black; text-align:center;">{{ pay.date }}</td>
+                    
+                    <td colspan="5">
+                        Less: Payment ({{ pay.method }} / Given by LTKR)
+                    </td>
+                    
+                    <td style="color: #2e7d32;">- {{ pay.amount }}</td>
+                </tr>
+                {% endfor %}
+
+                <tr class="final-row">
+                    <td colspan="6" style="text-align: right; padding-right: 15px;">NET PAYABLE AMOUNT:</td>
+                    <td>₹{{ net_payable }}</td>
+                </tr>
+
+            </tbody>
+        </table>
+    </div>
+</body>
+</html>

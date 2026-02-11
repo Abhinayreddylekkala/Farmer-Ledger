@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Bill History</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 20px; background-color: #f0f8ff; }
+        
+        .header-box { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        .back-btn { text-decoration: none; color: white; background: #34495e; padding: 10px 15px; border-radius: 5px; }
+        
+        /* NEW: Search Bar Style */
+        .search-box { padding: 10px; width: 300px; border: 1px solid #ccc; border-radius: 5px; font-size: 16px; }
+
+        table { width: 100%; border-collapse: collapse; background: white; box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
+        th, td { border: 1px solid #ddd; padding: 12px; text-align: left; }
+        th { background-color: #2c3e50; color: white; }
+        tr:nth-child(even) { background-color: #f2f2f2; }
+        
+        .btn-edit { color: #2980b9; font-weight: bold; text-decoration: none; margin-right: 10px; }
+        .btn-print { color: #27ae60; font-weight: bold; text-decoration: none; margin-right: 10px; }
+        .btn-del { color: #c0392b; background: none; border: none; cursor: pointer; font-weight: bold; font-size: 1em; }
+    </style>
+</head>
+<body>
+
+    <div class="header-box">
+        <a href="{{ url_for('home') }}" class="back-btn">← Back to Calculator</a>
+        
+        <input type="text" id="searchInput" onkeyup="filterTable()" placeholder="🔍 Search for farmer name..." class="search-box">
+    </div>
+
+    <h2>📜 Previous Bills</h2>
+
+    <table id="historyTable">
+        <thead>
+            <tr>
+                <th>Date</th>
+                <th>Farmer Name</th>
+                <th>Total Kilos</th>
+                <th>Final Amount</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for bill in bills %}
+            <tr>
+                <td>{{ bill.date }}</td> 
+                <td>{{ bill.farmer_name }}</td>
+                <td>{{ bill.total_kilos }}</td>
+                <td>₹ {{ bill.grand_total }}</td>
+                <td>
+                    <a href="{{ url_for('edit_bill', id=bill.id) }}" class="btn-edit">✏️ Edit</a>
+                    
+                    <a href="{{ url_for('print_bill', id=bill.id) }}" target="_blank" class="btn-print">🖨️ Print</a>
+
+                    <form action="{{ url_for('delete_bill', id=bill.id) }}" method="POST" style="display:inline;">
+                        <button type="submit" onclick="return confirm('Delete this bill?');" class="btn-del">❌ Delete</button>
+                    </form>
+                </td>
+            </tr>
+            {% else %}
+            <tr><td colspan="5" style="text-align:center;">No history found.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <script>
+        function filterTable() {
+            var input, filter, table, tr, td, i, txtValue;
+            input = document.getElementById("searchInput");
+            filter = input.value.toUpperCase();
+            table = document.getElementById("historyTable");
+            tr = table.getElementsByTagName("tr");
+
+            // Loop through all table rows
+            for (i = 1; i < tr.length; i++) {
+                td = tr[i].getElementsByTagName("td")[1]; // Column 1 is "Farmer Name"
+                if (td) {
+                    txtValue = td.textContent || td.innerText;
+                    // If the name matches what you typed, show it. Otherwise hide it.
+                    if (txtValue.toUpperCase().indexOf(filter) > -1) {
+                        tr[i].style.display = "";
+                    } else {
+                        tr[i].style.display = "none";
+                    }
+                }       
+            }
+        }
+    </script>
+
+</body>
+</html>

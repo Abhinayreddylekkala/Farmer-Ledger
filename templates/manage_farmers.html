@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Manage Farmers</title>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; background-color: #f4f6f9; padding: 20px; }
+        
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        
+        /* Buttons */
+        .btn-group { display: flex; gap: 10px; }
+        .btn { padding: 10px 15px; text-decoration: none; border-radius: 5px; font-weight: bold; color: white; font-size: 0.9em; }
+        .btn-add { background: #d32f2f; }
+        .btn-business { background: #2c3e50; } /* New Button Style */
+        .btn-back { background: #555; }
+
+        .search-bar { background: white; padding: 15px; border-radius: 8px; margin-bottom: 20px; display: flex; gap: 10px; align-items: flex-end; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+        .date-input { padding: 8px; border: 1px solid #ccc; border-radius: 4px; }
+        .btn-search { background: #333; color: white; border: none; padding: 9px 15px; border-radius: 4px; cursor: pointer; }
+        .btn-clear { background: #999; color: white; text-decoration: none; padding: 9px 15px; border-radius: 4px; }
+
+        .summary-card { background: linear-gradient(135deg, #1e3c72, #2a5298); color: white; padding: 20px; border-radius: 8px; margin-bottom: 25px; display: flex; justify-content: space-around; box-shadow: 0 4px 15px rgba(0,0,0,0.2); }
+        .stat-item { text-align: center; }
+        .stat-value { font-size: 1.8em; font-weight: bold; }
+        .stat-label { font-size: 0.9em; opacity: 0.8; text-transform: uppercase; }
+
+        .table-card { background: white; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); overflow: hidden; }
+        table { width: 100%; border-collapse: collapse; }
+        th { text-align: left; padding: 15px; color: #777; font-size: 0.85em; text-transform: uppercase; border-bottom: 1px solid #eee; }
+        td { padding: 15px; border-bottom: 1px solid #eee; color: #333; }
+        .balance { color: #d32f2f; font-weight: bold; }
+        .view-link { color: #d32f2f; font-weight: bold; text-decoration: none; cursor: pointer; background: #ffebee; padding: 5px 10px; border-radius: 4px; }
+        .view-link:hover { background: #ffcdd2; }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <h2>Dashboard</h2>
+        <div class="btn-group">
+            <a href="{{ url_for('home') }}" class="btn btn-back">← Calculator</a>
+            
+            <a href="{{ url_for('businessman') }}" class="btn btn-business">👨‍💼 Sales to Businessman</a>
+            
+            <a href="{{ url_for('home') }}" class="btn btn-add">Add Farmer Bill</a> 
+        </div>
+    </div>
+
+    <form method="GET" action="{{ url_for('dashboard') }}" class="search-bar">
+        <div><small>From:</small><br><input type="date" name="start_date" class="date-input" value="{{ start_date if start_date else '' }}"></div>
+        <div><small>To:</small><br><input type="date" name="end_date" class="date-input" value="{{ end_date if end_date else '' }}"></div>
+        <div><br><button type="submit" class="btn-search">🔍 Filter Data</button> <a href="{{ url_for('dashboard') }}" class="btn-clear">Clear</a></div>
+    </form>
+
+    <div class="summary-card">
+        <div class="stat-item"><div class="stat-value">{{ total_bags }}</div><div class="stat-label">Total Bags</div></div>
+        <div class="stat-item"><div class="stat-value">{{ total_kilos }} kg</div><div class="stat-label">Total Weight</div></div>
+        <div class="stat-item"><div class="stat-value">₹{{ total_revenue }}</div><div class="stat-label">Total Business</div></div>
+    </div>
+
+    <div class="table-card">
+        <table>
+            <thead>
+                <tr>
+                    <th>NAME</th>
+                    <th>CONTACT</th>
+                    <th>PENDING BALANCE</th>
+                    <th>ACTION</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for key, farmer in farmers.items() %}
+                <tr>
+                    <td><strong>{{ farmer.name }}</strong><br><span style="color:#999; font-size:0.8em;">Farmer</span></td>
+                    <td>{{ farmer.contact }}</td> 
+                    <td class="balance">₹{{ farmer.balance }}</td>
+                    <td><a href="{{ url_for('ledger', farmer_name=farmer.name) }}" class="view-link">View Ledger ➔</a></td>
+                </tr>
+                {% else %}
+                <tr><td colspan="4" style="text-align:center;">No data found.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+</body>
+</html>
