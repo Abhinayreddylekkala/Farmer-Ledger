@@ -1,18 +1,26 @@
-from flask import Flask, render_template, request, redirect, url_for
+from flask import Flask, render_template, request, redirect, url_for, flash
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 from flask_sqlalchemy import SQLAlchemy
+from werkzeug.security import generate_password_hash, check_password_hash
 import os
+import re
 
 app = Flask(__name__)
 
 # --- CONFIGURATION ---
-app.secret_key = 'secret_key_change_this_in_production'
+# IMPORTANT: In Render, set FLASK_SECRET_KEY in your Environment Variables to a long random string!
+app.secret_key = os.environ.get('FLASK_SECRET_KEY', 'secret_key_change_this_in_production')
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///farmers.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 db = SQLAlchemy(app)
 
 # --- DATABASE MODELS ---
+class User(UserMixin, db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    username = db.Column(db.String(50), unique=True, nullable=False)
+    password_hash = db.Column(db.String(255), nullable=False)
+
 class Bill(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(50))
@@ -43,23 +51,30 @@ class Payment(db.Model):
     date = db.Column(db.String(50))
     amount = db.Column(db.Integer)
     method = db.Column(db.String(50)) 
-    status = db.Column(db.String(20), default='Pending')  # ✅ NEW STATUS COLUMN
+    status = db.Column(db.String(20), default='Pending')
 
 # --- LOGIN SETUP ---
 login_manager = LoginManager()
 login_manager.init_app(app)
 login_manager.login_view = 'login'
 
-USERS = { "admin": "password123", "farmer": "farm2024" }
-
-class User(UserMixin):
-    def __init__(self, id):
-        self.id = id
-
 @login_manager.user_loader
 def load_user(user_id):
-    if user_id in USERS: return User(user_id)
-    return None
+    return User.query.get(int(user_id))
+
+def check_password_strength(password):
+    """Checks if password has A-Z, a-z, 0-9, and a special character."""
+    if len(password) < 8:
+        return False, "Password must be at least 8 characters long."
+    elif not re.search(r"[A-Z]", password):
+        return False, "Password must have at least one uppercase letter (A-Z)."
+    elif not re.search(r"[a-z]", password):
+        return False, "Password must have at least one lowercase letter (a-z)."
+    elif not re.search(r"\d", password):
+        return False, "Password must have at least one number (0-9)."
+    elif not re.search(r"[@$!%*?&#]", password):
+        return False, "Password must have at least one special character (like @ or &)."
+    return True, ""
 
 # --- AUTH ROUTES ---
 @app.route('/login', methods=['GET', 'POST'])
@@ -68,11 +83,15 @@ def login():
     if request.method == 'POST':
         username = request.form['username']
         password = request.form['password']
-        if username in USERS and USERS[username] == password:
-            login_user(User(username))
+        
+        user = User.query.filter_by(username=username).first()
+        
+        if user and check_password_hash(user.password_hash, password):
+            login_user(user)
             return redirect(url_for('home'))
         else:
             error = "Invalid Username or Password!"
+            
     return render_template('login.html', error=error)
 
 @app.route('/signup', methods=['GET', 'POST'])
@@ -81,10 +100,26 @@ def signup():
     if request.method == 'POST':
         username = request.form['username']
         password = request.form['password']
-        if username in USERS: error = "User already exists!"
+        
+        # Check if username already exists in database
+        existing_user = User.query.filter_by(username=username).first()
+        
+        # Run the strong password check
+        is_strong, msg = check_password_strength(password)
+        
+        if existing_user: 
+            error = "User already exists! Please log in."
+        elif not is_strong:
+            error = msg
         else:
-            USERS[username] = password
+            # Hash the strong password and save the new user to the database
+            hashed_password = generate_password_hash(password)
+            new_user = User(username=username, password_hash=hashed_password)
+            db.session.add(new_user)
+            db.session.commit()
+            
             return redirect(url_for('login'))
+            
     return render_template('signup.html', error=error)
 
 @app.route('/logout')
@@ -98,7 +133,7 @@ def logout():
 @login_required
 def home():
     result = None
-    existing_names = [r.farmer_name for r in Bill.query.filter_by(username=current_user.id).with_entities(Bill.farmer_name).distinct()]
+    existing_names = [r.farmer_name for r in Bill.query.filter_by(username=current_user.username).with_entities(Bill.farmer_name).distinct()]
     if request.method == 'POST':
         try:
             name = request.form.get('name')
@@ -110,10 +145,10 @@ def home():
             ppu = mp + ex
             gt = round(manu * ppu, 2)
             
-            new_bill = Bill(username=current_user.id, farmer_name=name, date=request.form.get('bill_date'), kilo_list=request.form.get('kilos'), total_kilos=tk, bags=len(k_list), manumulu=manu, market_price=mp, extra_amount=ex, price_per_unit=ppu, grand_total=gt, status='Pending')
+            new_bill = Bill(username=current_user.username, farmer_name=name, date=request.form.get('bill_date'), kilo_list=request.form.get('kilos'), total_kilos=tk, bags=len(k_list), manumulu=manu, market_price=mp, extra_amount=ex, price_per_unit=ppu, grand_total=gt, status='Pending')
             db.session.add(new_bill)
             db.session.commit()
-            existing_names = [r.farmer_name for r in Bill.query.filter_by(username=current_user.id).with_entities(Bill.farmer_name).distinct()]
+            existing_names = [r.farmer_name for r in Bill.query.filter_by(username=current_user.username).with_entities(Bill.farmer_name).distinct()]
             result = {'name': name, 'date': new_bill.date, 'total_kilos': tk, 'bags': len(k_list), 'manumulu': manu, 'market_price': mp, 'extra_amount': ex, 'price_per_unit': ppu, 'grand_total': gt}
         except: pass
     return render_template('index.html', result=result, user=current_user, existing_names=existing_names)
@@ -122,8 +157,8 @@ def home():
 @app.route('/dashboard')
 @login_required
 def dashboard():
-    all_bills = Bill.query.filter_by(username=current_user.id).all()
-    all_payments = Payment.query.filter_by(username=current_user.id).all()
+    all_bills = Bill.query.filter_by(username=current_user.username).all()
+    all_payments = Payment.query.filter_by(username=current_user.username).all()
     
     farmers = {}
     total_bags = total_kilos = total_revenue = 0
@@ -150,16 +185,16 @@ def ledger(farmer_name):
     start = request.args.get('start_date')
     end = request.args.get('end_date')
 
-    bill_query = Bill.query.filter_by(username=current_user.id, farmer_name=farmer_name)
+    bill_query = Bill.query.filter_by(username=current_user.username, farmer_name=farmer_name)
     if start and end: bill_query = bill_query.filter(Bill.date >= start).filter(Bill.date <= end)
     bills = bill_query.order_by(Bill.date.desc()).all()
 
-    pay_query = Payment.query.filter_by(username=current_user.id, farmer_name=farmer_name)
+    pay_query = Payment.query.filter_by(username=current_user.username, farmer_name=farmer_name)
     if start and end: pay_query = pay_query.filter(Payment.date >= start).filter(Payment.date <= end)
     payments = pay_query.order_by(Payment.date.desc()).all()
 
     total_bill_amount = sum(b.grand_total for b in bills if b.status != 'Completed')
-    total_paid_amount = sum(p.amount for p in payments) # We subtract ALL payments made
+    total_paid_amount = sum(p.amount for p in payments) 
     net_balance = round(total_bill_amount - total_paid_amount, 2)
     
     period_bags = sum(b.bags for b in bills)
@@ -173,7 +208,7 @@ def ledger(farmer_name):
 @login_required
 def add_payment(farmer_name):
     try:
-        new_pay = Payment(username=current_user.id, farmer_name=farmer_name, date=request.form['date'], amount=int(request.form['amount']), method=request.form['method'], status='Pending')
+        new_pay = Payment(username=current_user.username, farmer_name=farmer_name, date=request.form['date'], amount=int(request.form['amount']), method=request.form['method'], status='Pending')
         db.session.add(new_pay)
         db.session.commit()
     except: pass
@@ -183,19 +218,18 @@ def add_payment(farmer_name):
 @login_required
 def delete_payment(id):
     pay = Payment.query.get(id)
-    if pay and pay.username == current_user.id:
+    if pay and pay.username == current_user.username:
         name = pay.farmer_name
         db.session.delete(pay)
         db.session.commit()
         return redirect(url_for('ledger', farmer_name=name))
     return redirect(url_for('dashboard'))
 
-# ✅ NEW: Undo Payment Settle
 @app.route('/undo_payment/<int:id>', methods=['POST'])
 @login_required
 def undo_payment(id):
     pay = Payment.query.get(id)
-    if pay and pay.username == current_user.id:
+    if pay and pay.username == current_user.username:
         pay.status = 'Pending'
         db.session.commit()
     return redirect(url_for('ledger', farmer_name=pay.farmer_name))
@@ -210,7 +244,7 @@ def businessman():
         try:
             bags = int(request.form['bags'])
             if name and bags > 0:
-                new_sale = BusinessmanSale(username=current_user.id, date=date, businessman_name=name, bags_sold=bags, status='Pending')
+                new_sale = BusinessmanSale(username=current_user.username, date=date, businessman_name=name, bags_sold=bags, status='Pending')
                 db.session.add(new_sale)
                 db.session.commit()
         except ValueError: pass
@@ -218,7 +252,7 @@ def businessman():
     
     start_date = request.args.get('start_date')
     end_date = request.args.get('end_date')
-    query = BusinessmanSale.query.filter_by(username=current_user.id)
+    query = BusinessmanSale.query.filter_by(username=current_user.username)
     if start_date and end_date: query = query.filter(BusinessmanSale.date >= start_date).filter(BusinessmanSale.date <= end_date)
     raw_sales = query.all()
     
@@ -237,7 +271,7 @@ def businessman():
 def businessman_history(name):
     start_date = request.args.get('start_date')
     end_date = request.args.get('end_date')
-    query = BusinessmanSale.query.filter_by(username=current_user.id, businessman_name=name)
+    query = BusinessmanSale.query.filter_by(username=current_user.username, businessman_name=name)
     if start_date and end_date: query = query.filter(BusinessmanSale.date >= start_date).filter(BusinessmanSale.date <= end_date)
     sales = query.order_by(BusinessmanSale.date.desc()).all()
     total_pending = sum(s.bags_sold for s in sales if s.status != 'Completed')
@@ -250,7 +284,7 @@ def settle_sales():
     name = None
     for sid in ids:
         sale = BusinessmanSale.query.get(sid)
-        if sale and sale.username == current_user.id:
+        if sale and sale.username == current_user.username:
             sale.status = 'Completed'
             name = sale.businessman_name
     db.session.commit()
@@ -261,7 +295,7 @@ def settle_sales():
 @login_required
 def undo_sale_settle(id):
     sale = BusinessmanSale.query.get(id)
-    if sale.username == current_user.id:
+    if sale.username == current_user.username:
         sale.status = 'Pending'
         db.session.commit()
     return redirect(url_for('businessman_history', name=sale.businessman_name))
@@ -270,7 +304,7 @@ def undo_sale_settle(id):
 @login_required
 def edit_sale(id):
     sale = BusinessmanSale.query.get_or_404(id)
-    if sale.username != current_user.id: return "Unauthorized"
+    if sale.username != current_user.username: return "Unauthorized"
     if request.method == 'POST':
         sale.date = request.form['date']
         sale.businessman_name = request.form['name']
@@ -286,7 +320,7 @@ def edit_sale(id):
 def delete_sale(id):
     sale = BusinessmanSale.query.get_or_404(id)
     name = sale.businessman_name
-    if sale.username == current_user.id:
+    if sale.username == current_user.username:
         db.session.delete(sale)
         db.session.commit()
     return redirect(url_for('businessman_history', name=name))
@@ -330,7 +364,6 @@ def undo_settle(id):
     db.session.commit()
     return redirect(url_for('ledger', farmer_name=bill.farmer_name))
 
-# ✅ UPDATED: PRINTING NOW MARKS BOTH BILLS AND PAYMENTS AS COMPLETED
 @app.route('/print_selected', methods=['POST'])
 @login_required
 def print_selected():
@@ -340,15 +373,15 @@ def print_selected():
     selected_bills = []
     for bid in bill_ids:
         bill = Bill.query.get(bid)
-        if bill and bill.username == current_user.id:
+        if bill and bill.username == current_user.username:
             bill.status = 'Completed'
             selected_bills.append(bill)
 
     selected_payments = []
     for pid in payment_ids:
         pay = Payment.query.get(pid)
-        if pay and pay.username == current_user.id:
-            pay.status = 'Completed' # ✅ NOW MARKING PAYMENTS COMPLETED
+        if pay and pay.username == current_user.username:
+            pay.status = 'Completed' 
             selected_payments.append(pay)
 
     db.session.commit()
@@ -372,4 +405,12 @@ def print_bill(id):
 if __name__ == '__main__':
     with app.app_context():
         db.create_all()
+        
+        # Check if the "admin" user exists, if not, create it
+        if not User.query.filter_by(username="admin").first():
+            hashed_pw = generate_password_hash("password123")
+            admin_user = User(username="admin", password_hash=hashed_pw)
+            db.session.add(admin_user)
+            db.session.commit()
+
     app.run(debug=True)
