@@ -122,6 +122,31 @@ def signup():
             
     return render_template('signup.html', error=error)
 
+@app.route('/reset_password', methods=['GET', 'POST'])
+def reset_password():
+    error = None
+    if request.method == 'POST':
+        username = request.form['username']
+        new_password = request.form['new_password']
+        
+        # 1. Find the user in the database
+        user = User.query.filter_by(username=username).first()
+        
+        if not user:
+            error = "Username not found!"
+        else:
+            # 2. Check if the new password is strong
+            is_strong, msg = check_password_strength(new_password)
+            if not is_strong:
+                error = msg
+            else:
+                # 3. Hash the new password and save it
+                user.password_hash = generate_password_hash(new_password)
+                db.session.commit()
+                return redirect(url_for('login'))
+                
+    return render_template('reset_password.html', error=error)
+
 @app.route('/logout')
 @login_required
 def logout():
