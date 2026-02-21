@@ -257,7 +257,8 @@ def undo_payment(id):
     if pay and pay.username == current_user.username:
         pay.status = 'Pending'
         db.session.commit()
-    return redirect(url_for('ledger', farmer_name=pay.farmer_name))
+        return redirect(url_for('ledger', farmer_name=pay.farmer_name))
+    return redirect(url_for('dashboard'))
 
 # --- BUSINESSMAN ROUTES ---
 @app.route('/businessman', methods=['GET', 'POST'])
@@ -320,10 +321,11 @@ def settle_sales():
 @login_required
 def undo_sale_settle(id):
     sale = BusinessmanSale.query.get(id)
-    if sale.username == current_user.username:
+    if sale and sale.username == current_user.username:
         sale.status = 'Pending'
         db.session.commit()
-    return redirect(url_for('businessman_history', name=sale.businessman_name))
+        return redirect(url_for('businessman_history', name=sale.businessman_name))
+    return redirect(url_for('businessman'))
 
 @app.route('/edit_sale/<int:id>', methods=['GET', 'POST'])
 @login_required
@@ -355,6 +357,8 @@ def delete_sale(id):
 @login_required
 def edit_bill(id):
     bill = Bill.query.get_or_404(id)
+    if bill.username != current_user.username:
+        return "Unauthorized", 403
     if request.method == 'POST':
         try:
             bill.date = request.form['bill_date']
@@ -376,6 +380,8 @@ def edit_bill(id):
 @login_required
 def delete_bill(id):
     bill = Bill.query.get_or_404(id)
+    if bill.username != current_user.username:
+        return "Unauthorized", 403
     name = bill.farmer_name
     db.session.delete(bill)
     db.session.commit()
@@ -385,9 +391,11 @@ def delete_bill(id):
 @login_required
 def undo_settle(id):
     bill = Bill.query.get(id)
-    bill.status = 'Pending'
-    db.session.commit()
-    return redirect(url_for('ledger', farmer_name=bill.farmer_name))
+    if bill and bill.username == current_user.username:
+        bill.status = 'Pending'
+        db.session.commit()
+        return redirect(url_for('ledger', farmer_name=bill.farmer_name))
+    return redirect(url_for('dashboard'))
 
 @app.route('/print_selected', methods=['POST'])
 @login_required
