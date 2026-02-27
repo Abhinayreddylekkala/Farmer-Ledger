@@ -27,7 +27,7 @@ A robust, Flask-based inventory and financial management system designed specifi
 * **Authentication:** Flask-Login, Authlib (Google OAuth), Werkzeug Security
 * **Frontend:** HTML5, CSS3, Jinja2 Templates
 * **Deployment:** Gunicorn, Render
-
+https://rythu-lekka.onrender.com/dashboard
 ## 🚀 Local Setup & Installation
 
 Follow these steps to run the application on your local machine:
@@ -36,3 +36,4 @@ Follow these steps to run the application on your local machine:
    ```bash
    git clone [https://github.com/Abhinayreddylekkala/Farmer-Ledger.git](https://github.com/Abhinayreddylekkala/Farmer-Ledger.git)
    cd Farmer-Ledger
+   
