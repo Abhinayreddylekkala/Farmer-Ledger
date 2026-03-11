@@ -2,6 +2,7 @@ from flask import Flask, render_template, request, redirect, url_for, flash
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash, check_password_hash
+from authlib.integrations.flask_client import OAuth
 import os
 import re
 
@@ -12,6 +13,18 @@ app = Flask(__name__)
 app.secret_key = os.environ.get('FLASK_SECRET_KEY', 'secret_key_change_this_in_production')
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///farmers.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+
+app.config['GOOGLE_CLIENT_ID'] = os.environ.get('GOOGLE_CLIENT_ID')
+app.config['GOOGLE_CLIENT_SECRET'] = os.environ.get('GOOGLE_CLIENT_SECRET')
+
+oauth = OAuth(app)
+google = oauth.register(
+    name='google',
+    client_id=app.config['GOOGLE_CLIENT_ID'],
+    client_secret=app.config['GOOGLE_CLIENT_SECRET'],
+    server_metadata_url='https://accounts.google.com/.well-known/openid-configuration',
+    client_kwargs={'scope': 'openid email profile'}
+)
 
 db = SQLAlchemy(app)
 
@@ -93,6 +106,37 @@ def login():
             error = "Invalid Username or Password!"
             
     return render_template('login.html', error=error)
+
+@app.route('/login/google')
+def login_google():
+    if not app.config['GOOGLE_CLIENT_ID'] or not app.config['GOOGLE_CLIENT_SECRET']:
+        flash('Google login is not configured. Set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET.', 'error')
+        return redirect(url_for('login'))
+    redirect_uri = url_for('google_callback', _external=True)
+    return google.authorize_redirect(redirect_uri)
+
+@app.route('/auth/google/callback')
+def google_callback():
+    try:
+        token = google.authorize_access_token()
+        user_info = token.get('userinfo') or google.parse_id_token(token)
+    except Exception:
+        flash('Unable to sign in with Google. Please try again.', 'error')
+        return redirect(url_for('login'))
+
+    email = (user_info or {}).get('email')
+    if not email:
+        flash('Google account email was not available.', 'error')
+        return redirect(url_for('login'))
+
+    user = User.query.filter_by(username=email).first()
+    if not user:
+        user = User(username=email, password_hash=generate_password_hash(os.urandom(24).hex()))
+        db.session.add(user)
+        db.session.commit()
+
+    login_user(user)
+    return redirect(url_for('home'))
 
 @app.route('/signup', methods=['GET', 'POST'])
 def signup():
@@ -257,7 +301,8 @@ def undo_payment(id):
     if pay and pay.username == current_user.username:
         pay.status = 'Pending'
         db.session.commit()
-    return redirect(url_for('ledger', farmer_name=pay.farmer_name))
+        return redirect(url_for('ledger', farmer_name=pay.farmer_name))
+    return redirect(url_for('dashboard'))
 
 # --- BUSINESSMAN ROUTES ---
 @app.route('/businessman', methods=['GET', 'POST'])
@@ -320,10 +365,11 @@ def settle_sales():
 @login_required
 def undo_sale_settle(id):
     sale = BusinessmanSale.query.get(id)
-    if sale.username == current_user.username:
+    if sale and sale.username == current_user.username:
         sale.status = 'Pending'
         db.session.commit()
-    return redirect(url_for('businessman_history', name=sale.businessman_name))
+        return redirect(url_for('businessman_history', name=sale.businessman_name))
+    return redirect(url_for('businessman'))
 
 @app.route('/edit_sale/<int:id>', methods=['GET', 'POST'])
 @login_required
@@ -355,6 +401,8 @@ def delete_sale(id):
 @login_required
 def edit_bill(id):
     bill = Bill.query.get_or_404(id)
+    if bill.username != current_user.username:
+        return "Unauthorized", 403
     if request.method == 'POST':
         try:
             bill.date = request.form['bill_date']
@@ -376,6 +424,8 @@ def edit_bill(id):
 @login_required
 def delete_bill(id):
     bill = Bill.query.get_or_404(id)
+    if bill.username != current_user.username:
+        return "Unauthorized", 403
     name = bill.farmer_name
     db.session.delete(bill)
     db.session.commit()
@@ -385,9 +435,11 @@ def delete_bill(id):
 @login_required
 def undo_settle(id):
     bill = Bill.query.get(id)
-    bill.status = 'Pending'
-    db.session.commit()
-    return redirect(url_for('ledger', farmer_name=bill.farmer_name))
+    if bill and bill.username == current_user.username:
+        bill.status = 'Pending'
+        db.session.commit()
+        return redirect(url_for('ledger', farmer_name=bill.farmer_name))
+    return redirect(url_for('dashboard'))
 
 @app.route('/print_selected', methods=['POST'])
 @login_required

@@ -9,6 +9,20 @@
         input { width: 100%; padding: 10px; margin: 10px 0; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px; }
         button { width: 100%; padding: 10px; background: #3498db; color: white; border: none; cursor: pointer; border-radius: 4px; font-size: 1em; margin-top: 10px; }
         button:hover { background: #2980b9; }
+        .google-btn {
+            display: block;
+            width: 100%;
+            padding: 10px;
+            margin-top: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            color: #444;
+            text-decoration: none;
+            box-sizing: border-box;
+            background: #fff;
+            font-size: 0.95em;
+        }
+        .google-btn:hover { background: #f7f7f7; }
         .error { color: red; font-size: 0.9em; margin-top: 15px; }
         .links-container { margin-top: 20px; font-size: 0.95em; }
         .links-container a { text-decoration: none; color: #3498db; display: block; margin-top: 10px; }
@@ -22,15 +36,25 @@
     <form method="POST">
         <input type="text" name="username" placeholder="Username" required>
         <input type="password" name="password" placeholder="Password" required>
-        
+
         <button type="submit">Login</button>
     </form>
-    
+
+    <a class="google-btn" href="{{ url_for('login_google') }}">Continue with Google</a>
+
     <div class="links-container">
         <a href="{{ url_for('reset_password') }}">Forgot Password?</a>
         <a href="{{ url_for('signup') }}">New Farmer? Create Account</a>
     </div>
-    
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                <p class="error">{{ message }}</p>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+
     {% if error %}
         <p class="error">{{ error }}</p>
     {% endif %}
